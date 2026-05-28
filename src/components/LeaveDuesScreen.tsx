@@ -39,8 +39,24 @@ export default function LeaveDuesScreen({
   const [activeSegment, setActiveSegment] = useState<"eligible" | "previous">("eligible");
 
   // State to custom configure salaries and days per employee ID
-  const [employeeSalaries, setEmployeeSalaries] = useState<Record<string, number>>({});
-  const [employeeCustomDays, setEmployeeCustomDays] = useState<Record<string, number>>({});
+  const [employeeSalaries, setEmployeeSalaries] = useState<Record<string, number>>(() => {
+    const salts: Record<string, number> = {};
+    employees.forEach(emp => {
+      if (emp.leaveDuesSalary !== undefined) {
+        salts[emp.id] = emp.leaveDuesSalary;
+      }
+    });
+    return salts;
+  });
+  const [employeeCustomDays, setEmployeeCustomDays] = useState<Record<string, number>>(() => {
+    const days: Record<string, number> = {};
+    employees.forEach(emp => {
+      if (emp.leaveDuesDays !== undefined) {
+        days[emp.id] = emp.leaveDuesDays;
+      }
+    });
+    return days;
+  });
 
   // Helper: check completion of one year
   const hasCompletedOneYear = (joinDateStr: string | undefined): boolean => {
@@ -115,8 +131,9 @@ export default function LeaveDuesScreen({
 
   // Helper: Perform smart dues calculation
   const getSmartDuesDetails = (empId: string, joinDate: string | undefined) => {
-    const salary = employeeSalaries[empId] ?? 5000;
-    const days = employeeCustomDays[empId] ?? getAccruedVacationDays(joinDate);
+    const emp = employees.find(e => e.id === empId);
+    const salary = employeeSalaries[empId] ?? emp?.leaveDuesSalary ?? 5000;
+    const days = employeeCustomDays[empId] ?? emp?.leaveDuesDays ?? getAccruedVacationDays(joinDate);
     const dailyRate = salary / 30;
     const totalDues = Math.round(days * dailyRate);
 
@@ -165,7 +182,9 @@ export default function LeaveDuesScreen({
       ...emp,
       leaveDuesRequested: true,
       leaveDuesRequestedDate: requestDate,
-      leaveDuesStatus: "not_received"
+      leaveDuesStatus: "not_received",
+      leaveDuesSalary: duesData.salary,
+      leaveDuesDays: duesData.days
     };
 
     // Add Audit Log Entry
@@ -187,13 +206,16 @@ export default function LeaveDuesScreen({
   };
 
   // Action: Toggle Status between Received & Not Received Yet
-  const handleUpdateStatus = (empId: string, status: "received" | "not_received") => {
+  const handleUpdateStatus = (empId: string, status: "received" | "not_received", year?: string) => {
     const emp = employees.find(e => e.id === empId);
     if (!emp) return;
 
+    const defaultYear = year || emp.leaveDuesReceivedYear || "2026";
+
     const updatedEmp: Employee = {
       ...emp,
-      leaveDuesStatus: status
+      leaveDuesStatus: status,
+      leaveDuesReceivedYear: status === "received" ? defaultYear : undefined
     };
 
     // Add Audit Log Entry
@@ -202,8 +224,8 @@ export default function LeaveDuesScreen({
       id: `log-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
       field: "leaveDuesStatus",
       fieldNameAr: "حالة استلام مستحقات الإجازة",
-      oldValue: emp.leaveDuesStatus === "received" ? "تم الاستلام" : "لم يستلم بعد",
-      newValue: status === "received" ? "تم الاستلام" : "لم يستلم بعد",
+      oldValue: emp.leaveDuesStatus === "received" ? `تم الاستلام (سنة ${emp.leaveDuesReceivedYear || "—"})` : "لم يستلم بعد",
+      newValue: status === "received" ? `تم استلام المستحقات (سنة ${defaultYear})` : "لم يستلم بعد",
       timestamp: new Date().toISOString(),
       updatedBy: "hosan66@gmail.com"
     });
@@ -222,7 +244,10 @@ export default function LeaveDuesScreen({
       ...emp,
       leaveDuesRequested: false,
       leaveDuesRequestedDate: undefined,
-      leaveDuesStatus: undefined
+      leaveDuesStatus: undefined,
+      leaveDuesSalary: undefined,
+      leaveDuesDays: undefined,
+      leaveDuesReceivedYear: undefined
     };
 
     // Add Audit Log Entry
@@ -384,6 +409,36 @@ export default function LeaveDuesScreen({
                 </div>
               );
             })()}
+
+            <div className="grid grid-cols-2 gap-3" dir="rtl">
+              <div>
+                <label className="block text-[10px] font-bold text-gray-600 mb-1.5">الراتب الأساسي (ر.س)</label>
+                <input
+                  type="number"
+                  value={employeeSalaries[selectedEmpForRequest] ?? employees.find(e => e.id === selectedEmpForRequest)?.leaveDuesSalary ?? 5000}
+                  onChange={(e) => {
+                    const val = Math.max(0, parseInt(e.target.value) || 0);
+                    setEmployeeSalaries(prev => ({ ...prev, [selectedEmpForRequest]: val }));
+                  }}
+                  className="w-full text-center font-sans font-extrabold text-xs px-3 py-2.5 bg-white border border-gray-200 rounded-lg focus:outline-none focus:border-[#1e3a8a]"
+                  placeholder="الراتب الأساسي"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold text-gray-600 mb-1.5">أيام الإجازة المتراكمة</label>
+                <input
+                  type="number"
+                  step="0.1"
+                  value={employeeCustomDays[selectedEmpForRequest] ?? employees.find(e => e.id === selectedEmpForRequest)?.leaveDuesDays ?? (hasCompletedOneYear(employees.find(e => e.id === selectedEmpForRequest)?.joinDate) ? getAccruedVacationDays(employees.find(e => e.id === selectedEmpForRequest)?.joinDate) : 0)}
+                  onChange={(e) => {
+                    const val = Math.max(0, parseFloat(e.target.value) || 0);
+                    setEmployeeCustomDays(prev => ({ ...prev, [selectedEmpForRequest]: val }));
+                  }}
+                  className="w-full text-center font-sans font-extrabold text-xs px-3 py-2.5 bg-white border border-gray-200 rounded-lg focus:outline-none focus:border-[#1e3a8a]"
+                  placeholder="عدد الأيام"
+                />
+              </div>
+            </div>
 
             <div>
               <label className="block text-[10px] font-bold text-gray-600 mb-1.5">تاريخ تقديم طلب مستحقات الإجازة</label>
@@ -608,6 +663,25 @@ export default function LeaveDuesScreen({
                           </button>
                         </div>
 
+                        {/* Dropdown to select/record the year of receipt if isReceived is true */}
+                        {isReceived && (
+                          <div className="flex items-center gap-1.5 flex-row-reverse text-right mt-1">
+                            <span className="text-[9px] text-gray-500 font-bold">سنة الاستلام:</span>
+                            <select
+                              value={emp.leaveDuesReceivedYear || "2026"}
+                              onChange={(e) => handleUpdateStatus(emp.id, "received", e.target.value)}
+                              className="text-[10px] bg-white border border-gray-200 rounded px-1.5 py-0.5 focus:outline-none focus:border-green-600 font-sans font-bold"
+                            >
+                              <option value="2026">2026</option>
+                              <option value="2025">2025</option>
+                              <option value="2024">2024</option>
+                              <option value="2023">2023</option>
+                              <option value="2022">2022</option>
+                              <option value="2021">2021</option>
+                            </select>
+                          </div>
+                        )}
+
                         {/* Quick cancel button */}
                         <button
                           onClick={() => handleCancelRequest(emp.id)}
@@ -632,7 +706,9 @@ export default function LeaveDuesScreen({
                             <span className="text-[9px] text-gray-400 font-bold">{emp.role}</span>
                             <span className="text-gray-300">•</span>
                             {isReceived ? (
-                              <span className="text-[9px] font-extrabold text-green-600 bg-green-50 px-1.5 py-0.5 rounded border border-green-150">تم الاستلام بنجاح</span>
+                              <span className="text-[9px] font-extrabold text-green-600 bg-green-50 px-1.5 py-0.5 rounded border border-green-150">
+                                تم استلام المستحقات سنة {emp.leaveDuesReceivedYear || "2026"}
+                              </span>
                             ) : (
                               <span className="text-[9px] font-extrabold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-150">لم يستلم بعد</span>
                             )}
@@ -675,7 +751,7 @@ export default function LeaveDuesScreen({
                         <span className="text-[8px] text-gray-400 block font-bold">حالة الصرف الحالية</span>
                         {isReceived ? (
                           <span className="text-[9px] font-black text-green-700 bg-green-50 rounded border border-green-100 block px-1 py-0.5">
-                            تم الصرف والتسليم
+                            تم استلام المستحقات سنة {emp.leaveDuesReceivedYear || "2026"}
                           </span>
                         ) : (
                           <span className="text-[9px] font-black text-amber-700 bg-amber-50 rounded border border-amber-100 block px-1 py-0.5 animate-pulse">

@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { ArrowRight, Search, Users, MessageSquareText, ChevronLeft, Calendar, UserCheck, UserX, ShieldAlert, ListFilter, Phone, Sparkles, Filter } from "lucide-react";
 import { Employee, ViewState } from "../types";
+import { motion } from "motion/react";
 
 interface AllEmployeesScreenProps {
   employees: Employee[];
@@ -212,13 +213,16 @@ export default function AllEmployeesScreen({
             const statusInfo = getStatusInfo(emp.status);
 
             return (
-              <div
+              <motion.div
                 key={emp.id}
                 onClick={() => {
                   onSelectEmployee(emp.id);
                   onScreenChange("profile");
                 }}
-                className="bg-white p-4 rounded-2xl border border-gray-100 shadow-xs flex items-center justify-between transition-all hover:translate-y-[-1px] hover:shadow-md cursor-pointer group"
+                whileHover={{ scale: 1.015, translateY: -2, boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.02)" }}
+                whileTap={{ scale: 0.99 }}
+                transition={{ type: "spring", stiffness: 450, damping: 25 }}
+                className="bg-white p-4 rounded-2xl border border-gray-100 shadow-xs flex items-center justify-between cursor-pointer group"
               >
                 
                 {/* Left side actions (direct communication triggers) */}
@@ -306,7 +310,7 @@ export default function AllEmployeesScreen({
 
                 </div>
 
-              </div>
+              </motion.div>
             );
           })
         )}

@@ -28,6 +28,9 @@ export interface Employee {
   leaveDuesRequested?: boolean;
   leaveDuesRequestedDate?: string;
   leaveDuesStatus?: "received" | "not_received";
+  leaveDuesSalary?: number;
+  leaveDuesDays?: number;
+  leaveDuesReceivedYear?: string;
   auditLog?: AuditLogEntry[];
 }
 
