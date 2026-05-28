@@ -1,0 +1,26 @@
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: 'IBM Plex Sans Arabic', "Inter", sans-serif;
+  --font-arabic: 'IBM Plex Sans Arabic', sans-serif;
+}
+
+body {
+  font-family: 'IBM Plex Sans Arabic', sans-serif;
+  -webkit-tap-highlight-color: transparent;
+  direction: rtl;
+}
+
+/* Custom scrollbars for clean dashboards */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #c5c5d3;
+  border-radius: 10px;
+}
+
